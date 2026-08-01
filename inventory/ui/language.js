@@ -105,6 +105,15 @@ zh:{
   pleaseInputCategoryName:"请输入分类名称",
   pleaseSelectProduct:"请选择商品",
   pleaseSelectCustomer:"请选择客户",
+  pleaseInputBarcode:"请输入条形码",
+  productNotFound:"未找到该商品",
+  insufficientStock:"库存不足",
+  scanBarcode:"扫描条形码",
+  scanFailed:"扫码失败",
+  paymentQRCode:"收款二维码",
+  wechatPay:"微信支付",
+  alipay:"支付宝",
+  scanToPay:"请扫描二维码完成支付",
 
   // 操作成功/失败提示
   saveSuccess:"保存成功",
@@ -250,6 +259,15 @@ en:{
   pleaseInputCategoryName:"Please enter category name",
   pleaseSelectProduct:"Please select product",
   pleaseSelectCustomer:"Please select customer",
+  pleaseInputBarcode:"Please enter barcode",
+  productNotFound:"Product not found",
+  insufficientStock:"Insufficient stock",
+  scanBarcode:"Scan Barcode",
+  scanFailed:"Scan failed",
+  paymentQRCode:"Payment QR Code",
+  wechatPay:"WeChat Pay",
+  alipay:"Alipay",
+  scanToPay:"Please scan the QR code to complete payment",
 
   // Operation Success/Failure Messages
   saveSuccess:"Saved successfully",

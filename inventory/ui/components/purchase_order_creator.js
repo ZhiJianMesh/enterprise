@@ -38,6 +38,41 @@ data(){return{
 emits:['orderCompleted','orderCanceled','hide'],
 
 methods:{
+  // 通过扫码快速添加商品
+  scanAndAdd(){
+    Platform.scanCode().then(result=>{
+      if(!result || !result.text){
+        this.$refs.errMsg.show(this.tags.scanFailed||'扫码失败');
+        return;
+      }
+      var barcode=result.text;
+      request({method:"GET",url:"/api/product/search?keyword="+encodeURIComponent(barcode)+"&limit=1"},this.service.name).then(resp=>{
+        if(resp.code!=RetCode.OK || !resp.data.list || resp.data.list.length===0){
+          this.$refs.errMsg.show(this.tags.productNotFound);
+          return;
+        }
+        var product=resp.data.list[0];
+        // 检查是否已存在
+        var existing=this.orderItems.find(i=>i.productId===product.id);
+        if(existing){
+          existing.quantity++;
+          existing.subTotal=(existing.quantity*existing.unitPrice).toFixed(2);
+        }else{
+          this.orderItems.push({
+            productId:product.id,
+            productName:product.name,
+            quantity:1,
+            unitPrice:product.price,
+            subTotal:product.price.toFixed(2)
+          });
+        }
+        this.calcTotal();
+      });
+    }).catch(err=>{
+      this.$refs.errMsg.show(this.tags.scanFailed||'扫码失败: '+err);
+    });
+  },
+
   addItemToList(){
     if(!this.newItem.product.id){this.$refs.errMsg.show(this.tags.pleaseSelectProduct);return;}
     if(this.newItem.quantity<=0){this.$refs.errMsg.show(this.tags.pleaseInputQuantity);return;}
@@ -109,6 +144,7 @@ methods:{
     this.orderItems=[];
     this.newItem={product:{id:null, name:'',price:0},quantity:1,unitPrice:0,subTotal:0};
     this.curOrder={id:null,supplier:{id:0, name:''},totalAmount:0,remark:''};
+    this.barcodeInput='';
     this.showDialog=true;
     this.status=2;
   },
@@ -117,17 +153,11 @@ methods:{
     request({method:"GET",url:"/api/purchase/getOrder?id="+orderId},this.service.name).then(resp=>{
       if(resp.code!=RetCode.OK) return;
       this.curOrder=resp.data;
-      this.curOrder.supplier={id:resp.data.supplierId, name:resp.data.supplierName};
       this.status=resp.data.status;
       this.orderItems=resp.data.items||[];
       var dt = new Date();
       dt.setTime(this.curOrder.createAt);
       this.curOrder.createAt = datetime2str(dt);
-      var totalAmount = 0;
-      for(var item of resp.data.items) {
-        totalAmount+=item.subTotal;
-      }
-      this.curOrder.totalAmount=totalAmount;
       this.showDialog=true;
     });
   },
@@ -184,6 +214,13 @@ template:`
       <q-btn icon="close" flat round dense v-close-popup></q-btn>
     </q-card-section>
     <q-card-section>
+      <!-- 扫码快速录入 -->
+      <div class="row q-col-gutter-sm q-mb-md" v-if="status!=1">
+        <div class="col-12">
+          <q-btn color="primary" icon="qr_code_scanner" :label="tags.scanBarcode" @click="scanAndAdd" class="full-width" size="lg"></q-btn>
+        </div>
+      </div>
+
       <div class="text-subtitle2 q-mb-sm q-mt-md">{{tags.items}}</div>
       <q-separator></q-separator>
       <!-- 新增商品信息 -->

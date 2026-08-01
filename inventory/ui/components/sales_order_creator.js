@@ -38,7 +38,9 @@ data(){return{
   newItem:{product:{id:null, name:'',price:0},quantity:1,unitPrice:0,subTotal:0},
   curOrder:{id:null, customer:{id:0, name:'Unknown'},
            totalAmount:0,discount:0,finalAmount:0,paymentMethod:'WX',remark:''},
-  paymentOpts:[]
+  paymentOpts:[],
+  showQRCodeDialog:false, // 显示收款二维码对话框
+  qrFinalAmount:0 // 二维码显示的最终金额
 }},
 created() {
     this.paymentOpts=Object.entries(this.tags.paymentMethods).map(([k,v])=>{return {value:k,label:v}})
@@ -46,10 +48,48 @@ created() {
 emits:['orderCompleted','orderCanceled','hide'],
 
 methods:{
+  // 通过扫码快速添加商品
+  scanAndAdd(){
+    Platform.scanCode().then(result=>{
+      if(!result || !result.text){
+        this.$refs.errMsg.show(this.tags.scanFailed||'扫码失败');
+        return;
+      }
+      var barcode=result.text;
+      request({method:"GET",url:"/api/product/search?keyword="+encodeURIComponent(barcode)+"&limit=1"},this.service.name).then(resp=>{
+        if(resp.code!=RetCode.OK || !resp.data.list || resp.data.list.length===0){
+          this.$refs.errMsg.show(this.tags.productNotFound);
+          return;
+        }
+        var product=resp.data.list[0];
+        if(product.stock<=0){
+          this.$refs.errMsg.show(this.tags.insufficientStock+': '+product.name);
+          return;
+        }
+        // 检查是否已存在
+        var existing=this.orderItems.find(i=>i.productId===product.id);
+        if(existing){
+          existing.quantity++;
+          existing.subTotal=(existing.quantity*existing.unitPrice).toFixed(2);
+        }else{
+          this.orderItems.push({
+            productId:product.id,
+            productName:product.name,
+            quantity:1,
+            unitPrice:product.price,
+            subTotal:product.price.toFixed(2)
+          });
+        }
+        this.calcTotal();
+      });
+    }).catch(err=>{
+      this.$refs.errMsg.show(this.tags.scanFailed||'扫码失败: '+err);
+    });
+  },
+
   addItemToList(){
     if(!this.newItem.product.id){this.$refs.errMsg.show(this.tags.pleaseSelectProduct);return;}
     if(this.newItem.quantity<=0){this.$refs.errMsg.show(this.tags.pleaseInputQuantity);return;}
-
     if(this.curOrder.id){
       this.doAddItem();
       return;
@@ -120,6 +160,7 @@ methods:{
     this.orderItems=[];
     this.newItem={product:{id:null, name:'',price:0},quantity:1,unitPrice:0,subTotal:0};
     this.curOrder={id:null,customer:{id:0, name:''},totalAmount:0,discount:0,finalAmount:0,payMethod:'WX',remark:''};
+    this.barcodeInput='';
     this.showDialog=true;
     this.status=2;
   },
@@ -166,11 +207,17 @@ methods:{
     }
 
     completeOrder(this.curOrder.id, this.curOrder.finalAmount, ()=>{
-        this.$emit('orderCompleted');
-        this.showDialog=false;
+        this.qrFinalAmount=this.curOrder.finalAmount;
+        this.showQRCodeDialog=true;
     }, (code, info)=>{
         this.$refs.errMsg.showErr(code, info);
     })
+  },
+
+  closeQRCodeDialog(){
+    this.showQRCodeDialog=false;
+    this.$emit('orderCompleted');
+    this.showDialog=false;
   },
   
   onCustomerChanged(){
@@ -183,6 +230,7 @@ methods:{
       }
     });
   },
+
   onHide() {
     this.$emit('hide');
   }
@@ -198,17 +246,26 @@ template:`
       <q-btn icon="close" flat round dense v-close-popup></q-btn>
     </q-card-section>
     <q-card-section>
-      <div class="text-subtitle2 q-mb-sm q-mt-md">{{tags.items}}</div>
+      <!-- 扫码快速录入 -->
+      <div class="row q-col-gutter-sm q-mb-md" v-if="status!=1">
+        <div class="col-12">
+          <q-btn color="primary" icon="qr_code_scanner" :label="tags.scanBarcode" @click="scanAndAdd" class="full-width" size="lg"></q-btn>
+        </div>
+      </div>
 
+      <div class="text-subtitle2 q-mb-sm q-mt-md">{{tags.items}}</div>
       <q-separator></q-separator>
-      <!-- 新增商品信息 -->
-      <div class="row q-col-gutter-sm q-mt-sm" v-if="status!=1">
-        <div class="col-4"><product-selector v-model="newItem.product" :serviceName="service.name" :label="tags.productName" dense @update:model-value="calcSubtotal"></product-selector></div>
-        <div class="col-2"><q-input v-model.number="newItem.quantity" :label="tags.quantity" type="number" dense min="1" @update:model-value="calcSubtotal"></q-input></div>
-        <div class="col-3"><q-input v-model.number="newItem.product.price" :label="tags.unitPrice" type="number" dense min="0" @update:model-value="calcSubtotal"></q-input></div>
-        <div class="col-2"><q-input v-model.number="newItem.subTotal" :label="tags.subTotal" dense readonly></q-input></div>
-        <div class="col-1 flex items-center justify-center">
-          <q-btn color="primary" icon="add" @click="addItemToList"></q-btn>
+
+      <!-- 逐个添加商品 -->
+      <div v-if="status!=1">
+        <div class="row q-col-gutter-sm q-mt-sm">
+          <div class="col-4"><product-selector v-model="newItem.product" :serviceName="service.name" :label="tags.productName" dense @update:model-value="calcSubtotal"></product-selector></div>
+          <div class="col-2"><q-input v-model.number="newItem.quantity" :label="tags.quantity" type="number" dense min="1" @update:model-value="calcSubtotal"></q-input></div>
+          <div class="col-3"><q-input v-model.number="newItem.product.price" :label="tags.unitPrice" type="number" dense min="0" @update:model-value="calcSubtotal"></q-input></div>
+          <div class="col-2"><q-input v-model.number="newItem.subTotal" :label="tags.subTotal" dense readonly></q-input></div>
+          <div class="col-1 flex items-center justify-center">
+            <q-btn color="primary" icon="add" @click="addItemToList"></q-btn>
+          </div>
         </div>
       </div>
 
@@ -226,6 +283,7 @@ template:`
           </q-td>
         </template>
       </q-table>
+      
       <q-separator class="q-mt-md"></q-separator>
       <div class="text-subtitle2 q-mb-sm q-mt-md">{{tags.summary}}</div>
       <div v-if="status!=1">
@@ -236,23 +294,53 @@ template:`
           <div class="col-5"><q-input v-model.number="curOrder.finalAmount" :label="tags.finalAmount" dense></q-input></div>
           <div class="col-3"><q-select v-model="curOrder.payMethod" :options="paymentOpts" :label="tags.paymentMethod" emit-value map-options dense></q-select></div>
         </div>
-        <div><q-input v-model="curOrder.remark" :label="tags.remark" dense></q-input></div>
+        <div><q-input v-model="curOrder.remark" :label="tags.remark" dense type="textarea" rows="2"></q-input></div>
       </div>
       <div v-else>
         <div class="row q-col-gutter-sm q-mt-sm">
           <div class="col"><q-icon color="blue" size="1em" name="shopping_cart"></q-icon>{{tags.customerName}}:{{curOrder.customerName}}</div>
-          <div class="col">{{tags.discount}}:{{curOrder.discount}}</div>
-          <div class="col"><q-icon color="orange" size="1em" name="monetization_on"></q-icon>{{tags.finalAmount}}:{{curOrder.finalAmount}} / {{curOrder.payMethodName}}</div>
+          <div class="col">{{tags.discount}}:{{curOrder.discount}}%</div>
+          <div class="col"><q-icon color="orange" size="1em" name="monetization_on"></q-icon>{{tags.finalAmount}}:¥{{curOrder.finalAmount}} / {{curOrder.payMethodName}}</div>
         </div>
-        <div>
+        <div class="q-mt-sm">
          {{curOrder.remark}}<br>
-         <div class="text-right">{{curOrder.creator}} @ {{curOrder.createAt}}<div>
+         <div class="text-right text-caption">{{curOrder.creator}} @ {{curOrder.createAt}}<div>
         </div>
       </div>
     </q-card-section>
     <q-card-actions align="right" v-if="status!=1">
       <q-btn flat :label="tags.cancel" color="grey" @click="onCancelOrder"></q-btn>
       <q-btn unelevated :label="tags.confirm" color="primary" @click="onConfirmOrder"></q-btn>
+    </q-card-actions>
+  </q-card>
+</q-dialog>
+
+<!-- 收款二维码对话框 -->
+<q-dialog v-model="showQRCodeDialog" persistent>
+  <q-card style="min-width:350px">
+    <q-card-section class="row items-center">
+      <div class="text-h6">{{tags.paymentQRCode}}</div>
+      <q-space></q-space>
+      <q-btn icon="close" flat round dense v-close-popup @click="closeQRCodeDialog"></q-btn>
+    </q-card-section>
+    <q-card-section class="text-center">
+      <div class="text-h5 q-mb-md">¥{{qrFinalAmount}}</div>
+      <div class="text-subtitle2 q-mb-sm">{{tags.scanToPay}}</div>
+      <div class="row justify-center q-gutter-md">
+        <div class="text-center">
+          <div class="q-mb-sm">{{tags.wechatPay}}</div>
+          <q-img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=wechat_pay"
+                 style="width:150px;height:150px" bordered></q-img>
+        </div>
+        <div class="text-center">
+          <div class="q-mb-sm">{{tags.alipay}}</div>
+          <q-img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=alipay"
+                 style="width:150px;height:150px" bordered></q-img>
+        </div>
+      </div>
+    </q-card-section>
+    <q-card-actions align="center">
+      <q-btn color="primary" :label="tags.confirm" @click="closeQRCodeDialog"></q-btn>
     </q-card-actions>
   </q-card>
 </q-dialog>
