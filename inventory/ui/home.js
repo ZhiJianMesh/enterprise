@@ -7,8 +7,11 @@ components:{salesOrderCreator},
 data(){return{
   stats:{},
   isOwner:false,
+  canPurchase:false,
+  canSales:false,
   recentOrders:[],
-  salesTrendData:[]
+  salesTrendData:[],
+  lowStock:[]
 }},
 
 created(){
@@ -18,13 +21,25 @@ created(){
             Console.warn("request "+url+" failed:" + resp.code + ",info:" + resp.info);
             return;
         }
-        this.isOwner=resp.data.role=='admin';
+        var role=resp.data.role;
+        this.isOwner=role=='admin';
+        this.canPurchase=(role=='admin'||role=='purchaser');
+        this.canSales=(role=='admin'||role=='salesperson');
     });
     this.loadStats();
+    this.loadLowStock();
+    //销售与客户管理对所有角色开放，首页最近订单直接加载
     this.loadRecentOrders();
 },
 
 methods:{
+  loadLowStock(){
+    request({method:"GET",url:"/api/report/lowStockList?limit=10"},this.service.name).then(resp=>{
+      if(resp.code!=RetCode.OK){this.lowStock=[];return;}
+      this.lowStock=resp.data.list||[];
+    });
+  },
+
   loadStats(){
     var end=Date.now();
     var start=end - 7 * 86400 * 1000;
@@ -83,11 +98,11 @@ template:`
     <q-toolbar-title>{{tags.app_name}}</q-toolbar-title>
     <q-btn-dropdown flat icon="menu" :label="tags.more">
       <q-list>
-        <q-item clickable @click="$router.push('/products')" v-if="isOwner">
+        <q-item clickable @click="$router.push('/products')" v-if="canPurchase">
           <q-item-section avatar><q-icon name="inventory_2"></q-icon></q-item-section>
           <q-item-section>{{tags.products}}</q-item-section>
         </q-item>
-        <q-item clickable @click="$router.push('/suppliers')" v-if="isOwner">
+        <q-item clickable @click="$router.push('/suppliers')" v-if="canPurchase">
           <q-item-section avatar><q-icon name="business"></q-icon></q-item-section>
           <q-item-section>{{tags.suppliers}}</q-item-section>
         </q-item>
@@ -95,12 +110,12 @@ template:`
           <q-item-section avatar><q-icon name="people"></q-icon></q-item-section>
           <q-item-section>{{tags.customers}}</q-item-section>
         </q-item>
-        <q-item clickable @click="$router.push('/categories')" v-if="isOwner">
+        <q-item clickable @click="$router.push('/categories')" v-if="canPurchase">
           <q-item-section avatar><q-icon name="category"></q-icon></q-item-section>
           <q-item-section>{{tags.categories}}</q-item-section>
         </q-item>
         <q-separator></q-separator>
-        <q-item clickable @click="$router.push('/purchase')">
+        <q-item clickable @click="$router.push('/purchase')" v-if="canPurchase">
           <q-item-section avatar><q-icon name="shopping_cart"></q-icon></q-item-section>
           <q-item-section>{{tags.purchase}}</q-item-section>
         </q-item>
@@ -187,6 +202,29 @@ template:`
           </q-td>
         </template>
       </q-table>
+    </q-card-section>
+  </q-card>
+
+  <!-- 低库存预警 -->
+  <q-card class="q-mb-md">
+    <q-card-section class="row items-center">
+      <div class="text-h6 text-negative">{{tags.lowStockList}}</div>
+      <q-space></q-space>
+      <q-btn flat color="primary" icon="inventory_2" :label="tags.products" @click="$router.push('/products')"></q-btn>
+    </q-card-section>
+    <q-card-section>
+      <q-list bordered separator v-if="lowStock.length>0">
+        <q-item v-for="p in lowStock" :key="p.id">
+          <q-item-section>
+            <q-item-label>{{p.name}}</q-item-label>
+            <q-item-label caption>{{p.categoryName}} / {{p.unit}}</q-item-label>
+          </q-item-section>
+          <q-item-section side>
+            <q-badge color="negative">{{tags.stock}}: {{p.stock}} / {{p.minStock}}</q-badge>
+          </q-item-section>
+        </q-item>
+      </q-list>
+      <div v-else class="text-grey">{{tags.noData}}</div>
     </q-card-section>
   </q-card>
 

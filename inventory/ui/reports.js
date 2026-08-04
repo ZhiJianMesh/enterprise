@@ -6,7 +6,9 @@ data(){return{
   trendsData:[],
   startDate:'',
   endDate:'',
-  dateRange:''
+  dateRange:'',
+  profit:{},
+  profitRate:'0.0'
 }},
 
 created(){
@@ -14,6 +16,7 @@ created(){
   this.loadStats();
   this.loadTopProducts();
   this.loadSalesTrend();
+  this.loadProfit();
 },
 
 methods:{
@@ -61,6 +64,20 @@ methods:{
         this.trendsData=resp.data.data||[];
       }
       this.renderChart();
+    });
+  },
+
+  loadProfit(){
+    var start=new Date(this.startDate).getTime();
+    var end=new Date(this.endDate).getTime();
+    request({method:"GET",url:"/api/report/profit?startDate="+start+"&endDate="+end},this.service.name).then(resp=>{
+      if(resp.code!=RetCode.OK) {
+        this.profit={};
+        return;
+      }
+      this.profit=resp.data;
+      var s=this.profit.saleAmount||0;
+      this.profitRate=s>0?((this.profit.profit||0)/s*100).toFixed(1):'0.0';
     });
   },
 
@@ -112,6 +129,7 @@ methods:{
     this.loadStats();
     this.loadTopProducts();
     this.loadSalesTrend();
+    this.loadProfit();
   }
 },
 
@@ -149,6 +167,42 @@ template:`
   </q-card>
 
   <div class="text-h5 q-mb-md">{{tags.stats}}</div>
+
+  <!-- 毛利统计 -->
+  <div class="row q-col-gutter-md q-mb-lg">
+    <div class="col-12 col-sm-6 col-md-3">
+      <q-card class="bg-positive text-white">
+        <q-card-section>
+          <div class="text-h6">{{tags.saleAmount}}</div>
+          <div class="text-h4">¥{{profit.saleAmount||0}}</div>
+        </q-card-section>
+      </q-card>
+    </div>
+    <div class="col-12 col-sm-6 col-md-3">
+      <q-card class="bg-primary text-white">
+        <q-card-section>
+          <div class="text-h6">{{tags.profit}}</div>
+          <div class="text-h4">¥{{profit.profit||0}}</div>
+        </q-card-section>
+      </q-card>
+    </div>
+    <div class="col-12 col-sm-6 col-md-3">
+      <q-card>
+        <q-card-section>
+          <div class="text-h6">{{tags.purchaseAmount}}</div>
+          <div class="text-h4">¥{{profit.purchaseAmount||0}}</div>
+        </q-card-section>
+      </q-card>
+    </div>
+    <div class="col-12 col-sm-6 col-md-3">
+      <q-card>
+        <q-card-section>
+          <div class="text-h6">{{tags.profitRate}}</div>
+          <div class="text-h4">{{profitRate}}%</div>
+        </q-card-section>
+      </q-card>
+    </div>
+  </div>
 
   <!-- 统计数据卡片 -->
   <div class="row q-col-gutter-md q-mb-lg">
