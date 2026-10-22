@@ -2,11 +2,13 @@ export default {
 inject:['service', 'tags'],
 data() {return {
     cals:[],
-    days:[],
+    days:[], //当前月份每天的信息
     cal:0, //当前日历id
+    start:0, //开始日期
+    end:0,
+    firstDay:0, //月度1号是星期的第几天
     edt:{cal:{name:''}},
-    ctrl:{no:-2,tag:'',calDlg:false,year:2000,month:1,
-         start:0,end:0,firstDay:0},
+    ctrl:{no:-2,tag:'',calDlg:false,year:2000,month:1},
 }},
 created(){
     this.query_cals();
@@ -30,17 +32,17 @@ query_cals(){
     })  
 },
 query_days(){
-    var mon=this.ctrl.year+this.ctrl.month.toString().padStart(2,'0');
-    var start=mon+'01';
+    // 给定月份下一个月的第0天就是当前月的最后一天
+    // ctrl.month是从1开始的，而Date的month参数是从0开始的
+    var dt=new Date(this.ctrl.year,this.ctrl.month-1,0);
+    var start=Math.floor(dt.getTime() / 86400000); //1号的UTC天
     this.start=start;
-    // 给定月份下一个月的0天就是当前月的最后一天，month是从1开始的
-    var dt=new Date(this.ctrl.year,this.ctrl.month,0);
-    var lastDay=dt.getDate();
-    var end=mon+lastDay.toString().padStart(2,'0');
+    var nextMon=new Date(this.ctrl.year,this.ctrl.month,0);
+    var lastDay=nextMon.getDate();
+    var end=start+lastDay;
     this.end=end;
     var opts={method:"GET", url:"/config/queryCalendar?calendar="
         +this.cal+"&start="+start+"&end="+end};
-    dt=new Date(this.ctrl.year,this.ctrl.month-1,1);
     var firstDay=dt.getDay();//1号是星期几，0-6
     this.firstDay=firstDay; //0-6;
     var dayNum=firstDay+lastDay; //可见的天数
@@ -143,7 +145,7 @@ remove_cal() {
 },
 set_month(ym) {
     this.ctrl.year=ym.year;
-    this.ctrl.month=ym.month; //不减1
+    this.ctrl.month=ym.month; //不减1，从1开始
     this.query_days();
 },
 init_cal(){
