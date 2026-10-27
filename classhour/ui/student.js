@@ -170,16 +170,26 @@ template:`
     <q-toolbar>
       <q-btn flat round icon="arrow_back" dense @click="service.go_back"></q-btn>
       <q-toolbar-title>{{student.name}}</q-toolbar-title>
+      <q-btn icon="military_tech" flat dense color="orange">
+        <q-badge color="red" floating>{{student.points}}</q-badge>
+        <q-popup-edit v-model="usePoint" buttons v-slot="scope" cover="false" auto-save="false" @save="exchange"
+        :label-set="tags.exchange" :label-cancel="tags.cancel" persistent max-width="30rem">
+         <q-input color="accent" v-model="scope.value" dense autofocus @keyup.enter="scope.set" type="number"></q-input>
+        </q-popup-edit>
+      </q-btn>
     </q-toolbar>
   </q-header>
   <q-page-container>
     <q-page class="q-px-md q-pb-lg">
 <q-banner dense inline-actions class="text-dark bg-blue-grey-1">
-{{student.name}}<q-icon :name="tags.sexInfo[student.sex].i" color="primary" size="1.5em"></q-icon>({{student.age}}{{tags.age}})
+ <template v-slot:avatar>
+  <q-icon :name="tags.sexInfo[student.sex].i" color="primary" size="1.5em"></q-icon>
+ </template>
+  {{student.name}} ({{student.age}}{{tags.age}})
   <template v-slot:action>
     <q-icon name="edit" color="primary"></q-icon>
-    <q-popup-edit v-model="student" cover="false" buttons auto-save v-slot="scope"
-      @save="save_base" :label-set="tags.save" :label-cancel="tags.cancel" style="min-width:40vw;">
+    <q-popup-edit v-model="student" cover="false" buttons auto-save="false" persistent v-slot="scope"
+      @save="save_base" :label-set="tags.save" :label-cancel="tags.cancel" max-width="50rem">
       <q-input color="accent" v-model="scope.value.name" dense autofocus>
        <template v-slot:prepend><q-icon name="person"></q-icon></template>
       </q-input>
@@ -187,7 +197,7 @@ template:`
       :rules="[v=>/^1[0-9]{10}$/.test(v)||tags.mobilePls]">
        <template v-slot:prepend><q-icon name="contact_phone"></q-icon></template>
       </q-input>
-       <component-date-input :close="tags.ok" :label="tags.birth" v-model="scope.value.birth" max="today"></component-date-input>
+      <component-date-input :close="tags.ok" :label="tags.birth" v-model="scope.value.birth" max="today"></component-date-input>
       <div class="q-gutter-sm">
        <q-radio v-model="scope.value.sex" val="F" :label="tags.sexInfo.F.n"></q-radio>
        <q-radio v-model="scope.value.sex" val="M" :label="tags.sexInfo.M.n"></q-radio>
@@ -215,14 +225,6 @@ template:`
   <q-item-section side><q-icon name="cake" color="primary"></q-icon></q-item-section>
   <q-item-section side>{{tags.birth}}</q-item-section>
   <q-item-section>{{student.birth}}</q-item-section>
- </q-item>
- <q-item>
-  <q-item-section side><q-icon name="military_tech" color="orange"></q-icon></q-item-section>
-  <q-item-section side>{{tags.points}}</q-item-section>
-  <q-item-section>{{student.points}}</q-item-section>
-  <q-popup-edit v-model="usePoint" buttons v-slot="scope" cover="false" @save="exchange" :label-set="tags.exchange" :label-cancel="tags.cancel">
-   <q-input color="accent" v-model="scope.value" dense autofocus @keyup.enter="scope.set" type="number"></q-input>
-  </q-popup-edit>
  </q-item>
 </q-list>
 

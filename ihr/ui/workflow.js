@@ -161,7 +161,7 @@ template:`
     <q-page class="q-pa-sm">
 <q-list dense>
   <q-item>
-    <q-item-section>{{tags.employee.account}}</q-item-section>
+    <q-item-section>{{tags.pub.account}}</q-item-section>
     <q-item-section side>{{info.account}}</q-item-section>
   </q-item>
   <q-item>

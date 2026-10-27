@@ -183,11 +183,11 @@ zh:{
     manage:'人事审批',
     maxEdu:"最高学历",
     firstEdu:"第一学历",
-    account:'帐号',
     signer:'权签人',
     setGrade:'任职',
     setSalary:'调薪',
-    setStock:'调股'
+    setStock:'调股',
+    migrate:'导入帐号'
   },
   grp:{
     title:"组织管理",

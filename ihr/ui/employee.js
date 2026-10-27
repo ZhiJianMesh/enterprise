@@ -39,6 +39,7 @@ get() {
     var url = "/api/employee/get?uid="+this.uid;
     request({method:"GET",url:url}, this.service.name).then(resp => {
         if(resp.code!=RetCode.OK) {
+            this.$refs.errMsg.showErr(resp.code, resp.info);
             return;
         }
         this.empInfo=this.convert(resp.data);
@@ -59,6 +60,7 @@ convert(src) {
     p.firstEdu_s=this.tags.edu[p.firstEdu];
     dt.setTime(p.birth*60000);
     p.age=year-dt.getFullYear();
+    p.birth=date2str(dt);
     dt.setTime(p.entryAt*60000);
     p.entryAt_s=date2str(dt);
     p.worktime_s=this.service.worktimeMap[p.worktime];
@@ -283,6 +285,14 @@ template:`
   <q-page-container>
     <q-page class="q-pa-md">
 <q-list dense>
+  <q-item>
+   <q-item-section>{{tags.pub.account}}</q-item-section>
+   <q-item-section>{{empInfo.account}}</q-item-section>
+  </q-item>
+  <q-item>
+   <q-item-section>{{tags.pub.birth}}</q-item-section>
+   <q-item-section>{{empInfo.birth}} ({{empInfo.age}})</q-item-section>
+  </q-item>
   <q-item>
    <q-item-section>{{tags.employee.maxEdu}}/{{tags.employee.firstEdu}}</q-item-section>
    <q-item-section><div>

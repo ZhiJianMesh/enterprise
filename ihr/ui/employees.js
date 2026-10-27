@@ -3,6 +3,7 @@ inject:['service', 'tags', 'ibf'],
 data() {return {
     list:[], //员工列表
     search:'',
+    account:'',
     ctrl:{cur:1, max:0}
 }},
 created(){
@@ -67,6 +68,18 @@ doSearch() {
 },
 detail(id) {
     this.service.goto("/employee?uid="+id)
+},
+migrate(acc) {
+    if(!acc) return;
+    var url="/api/employee/migrate?account="+acc;
+    request({method:"GET",url:url}, this.service.name).then(resp => {
+        this.account='';
+        if(resp.code != RetCode.OK) {
+            this.$refs.errMsg.showErr(resp.code, resp.info);
+            return;
+        }
+        this.query(this.ibf.getRt('pg', 1));
+    })
 }
 },
 template:`
@@ -75,6 +88,13 @@ template:`
    <q-toolbar>
     <q-btn flat icon="arrow_back" dense @click="service.back"></q-btn>
     <q-toolbar-title>{{tags.employee.title}}</q-toolbar-title>
+    <q-btn flat icon="assignment_returned" dense>
+    <q-popup-edit v-model="account" v-slot="scope" :label-set="tags.ok" :label-cancel="tags.cancel"
+     auto-save="false" buttons persistent @save="migrate" :title="tags.employee.migrate"
+     max-width="50rem" cover="false">
+     <q-input v-model="scope.value" dense autofocus :label="tags.pub.account" @keyup.enter="scope.set"></q-input>
+    </q-popup-edit>
+    </q-btn>
   </q-toolbar>
   </q-header>
   <q-footer class="bg-white q-pa-md">
@@ -116,5 +136,7 @@ template:`
     </q-page>
   </q-page-container>
 </q-layout>
+
+<alert-dialog :title="tags.failToCall" :errMsgs="tags.errMsgs" ref="errMsg"></alert-dialog>
 `
 }
